@@ -40,6 +40,10 @@ const level = new EnmapSQLite({
 });
 ```
 
+### name
+
+Defines the `name` of the table saved in sqlite. 
+
 ### dataDir 
 
 Indicates the relative or absolute directory where to hold the sqlite file. If multiple enmap use the same file, a new table is created for each. The filename is always `enmap.sqlite`.
