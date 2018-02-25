@@ -1,0 +1,32 @@
+{
+  "name": "enmap-level",
+  "version": "1.0.1",
+  "description": "",
+  "main": "index.js",
+  "types": "typings/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eslachance/enmap-sqlite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eslachance/enmap-sqlite/issues"
+  },
+  "homepage": "https://github.com/eslachance/enmap-sqlite#readme",
+  "keywords": [],
+  "author": "Evelyne Lachance <eslachance@gmail.com> (http://evie.codes/)",
+  "license": "ISC",
+  "dependencies": {
+    "sqlite-pool": "^1.2.5"
+  },
+  "devDependencies": {
+    "eslint": "^4.8.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-node": "^5.2.0",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1"
+  }
+}
