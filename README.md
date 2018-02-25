@@ -35,10 +35,11 @@ const myColl = new Enmap({ provider: new EnmapSQLite({ name: 'test' }); });
 ```js
 // Example with all options.
 const level = new EnmapSQLite({ 
-  dataDir: './enmap.sqlite'
+  name: "test",
+  dataDir: './data'
 });
 ```
 
 ### dataDir 
 
-Indicates the directory where to hold the sqlite file. If multiple enmap use the same file, a new table is created for each. The filename is always `enmap.sqlite`.
+Indicates the relative or absolute directory where to hold the sqlite file. If multiple enmap use the same file, a new table is created for each. The filename is always `enmap.sqlite`.
