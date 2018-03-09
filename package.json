@@ -19,6 +19,7 @@
   "author": "Evelyne Lachance <eslachance@gmail.com> (http://evie.codes/)",
   "license": "ISC",
   "dependencies": {
+    "sqlite": "^2.9.1",
     "sqlite-pool": "^1.2.5"
   },
   "devDependencies": {

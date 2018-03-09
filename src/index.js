@@ -1,4 +1,4 @@
-const Sqlite = require('sqlite-pool');
+const sqlite = require('sqlite');
 const path = require('path');
 const fs = require('fs');
 
@@ -20,7 +20,6 @@ class EnmapSQLite {
       }
     }
     console.log(this.dataDir);
-    this.db = new Sqlite(`${this.dataDir}${path.sep}enmap.sqlite`);
   }
 
   /**
@@ -29,20 +28,21 @@ class EnmapSQLite {
    * @returns {Promise} Returns the defer promise to await the ready state.
    */
   async init(enmap) {
+    this.db = await sqlite.open(`${this.dataDir}${path.sep}enmap.sqlite`);
     const table = await this.db.get(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name = '${this.name}';`);
     if (!table['count(*)']) {
       await this.db.run(`CREATE TABLE ${this.name} (key text PRIMARY KEY, value text)`);
+      await this.db.run(`PRAGMA synchronous = 0`);
     }
-    this.db.each(`SELECT * FROM ${this.name};`, row => {
+    const rows = await this.db.all(`SELECT * FROM ${this.name};`);
+    for (const row of rows) {
       let parsedValue = row.value;
       if (row.value[0] === '[' || row.value[0] === '{') {
         parsedValue = JSON.parse(row.value);
       }
       enmap.set(row.key, parsedValue);
-    }).then(total => {
-      console.log(`${total} rows loaded.`);
-      this.ready();
-    });
+    }
+    this.ready();
     return this.defer;
   }
 
