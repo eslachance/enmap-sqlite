@@ -80,7 +80,7 @@ class EnmapSQLite {
       throw new Error('SQLite require keys to be strings or numbers.');
     }
     const insert = typeof val === 'object' ? JSON.stringify(val) : val;
-    await this.db.exec(`INSERT OR REPLACE INTO ${this.name} (key, val) VALUES (${key}, ${insert});`);
+    await this.db.run(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`, [key, insert]);
   }
 
   /**
