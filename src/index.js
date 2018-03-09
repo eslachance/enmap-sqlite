@@ -1,4 +1,4 @@
-const sqlite = require('sqlite');
+const Pool = require('better-sqlite-pool');
 const path = require('path');
 const fs = require('fs');
 
@@ -19,7 +19,6 @@ class EnmapSQLite {
         fs.mkdirSync('./data');
       }
     }
-    console.log(this.dataDir);
   }
 
   /**
@@ -28,13 +27,14 @@ class EnmapSQLite {
    * @returns {Promise} Returns the defer promise to await the ready state.
    */
   async init(enmap) {
-    this.db = await sqlite.open(`${this.dataDir}${path.sep}enmap.sqlite`);
-    const table = await this.db.get(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name = '${this.name}';`);
+    this.pool = new Pool(`${this.dataDir}${path.sep}enmap.sqlite`);
+    this.db = await this.pool.acquire();
+    const table = await this.db.prepare(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name = '${this.name}';`).get();
     if (!table['count(*)']) {
-      await this.db.run(`CREATE TABLE ${this.name} (key text PRIMARY KEY, value text)`);
-      await this.db.run(`PRAGMA synchronous = 0`);
+      await this.db.prepare(`CREATE TABLE ${this.name} (key text PRIMARY KEY, value text)`).run();
+      await this.db.prepare(`PRAGMA synchronous = 0`).run();
     }
-    const rows = await this.db.all(`SELECT * FROM ${this.name};`);
+    const rows = await this.db.prepare(`SELECT * FROM ${this.name};`).all();
     for (const row of rows) {
       let parsedValue = row.value;
       if (row.value[0] === '[' || row.value[0] === '{') {
@@ -65,7 +65,7 @@ class EnmapSQLite {
       throw new Error('SQLite require keys to be strings or numbers.');
     }
     const insert = typeof val === 'object' ? JSON.stringify(val) : val;
-    this.db.run(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`, [key, insert]);
+    this.db.prepare(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`).run(key, insert);
   }
 
   /**
@@ -80,7 +80,7 @@ class EnmapSQLite {
       throw new Error('SQLite require keys to be strings or numbers.');
     }
     const insert = typeof val === 'object' ? JSON.stringify(val) : val;
-    await this.db.run(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`, [key, insert]);
+    await this.db.prepare(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`).run(key, insert);
   }
 
   /**
@@ -89,7 +89,7 @@ class EnmapSQLite {
    * @param {boolean} bulk Internal property used by the purge method.
    */
   delete(key) {
-    this.db.exec(`DELETE FROM ${this.name} WHERE key = '${key}'`);
+    this.db.prepare(`DELETE FROM ${this.name} WHERE key = '${key}'`).exec();
   }
 
   /**
@@ -98,7 +98,7 @@ class EnmapSQLite {
    * @param {boolean} bulk Internal property used by the purge method.
    */
   async deleteAsync(key) {
-    await this.db.exec(`DELETE FROM ${this.name} WHERE key = '${key}'`);
+    await this.db.prepare(`DELETE FROM ${this.name} WHERE key = '${key}'`).exec();
   }
 
   /**
