@@ -2,7 +2,7 @@ const Pool = require('better-sqlite-pool');
 const path = require('path');
 const fs = require('fs');
 
-class EnmapSQLite {
+class EnmapProvider {
 
   constructor(options) {
     this.defer = new Promise((resolve) => {
@@ -29,18 +29,15 @@ class EnmapSQLite {
   async init(enmap) {
     this.pool = new Pool(`${this.dataDir}${path.sep}enmap.sqlite`);
     this.db = await this.pool.acquire();
-    const table = await this.db.prepare(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name = '${this.name}';`).get();
+    this.enmap = enmap;
+    const table = this.db.prepare(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name = '${this.name}';`).get();
     if (!table['count(*)']) {
-      await this.db.prepare(`CREATE TABLE ${this.name} (key text PRIMARY KEY, value text)`).run();
-      await this.db.prepare(`PRAGMA synchronous = 0`).run();
+      this.db.prepare(`CREATE TABLE ${this.name} (key text PRIMARY KEY, value text)`).run();
+      this.db.prepare(`PRAGMA synchronous = 1`).run();
+      this.db.prepare(`PRAGMA journal_mode = wal`).run();
     }
-    const rows = await this.db.prepare(`SELECT * FROM ${this.name};`).all();
-    for (const row of rows) {
-      let parsedValue = row.value;
-      if (row.value[0] === '[' || row.value[0] === '{') {
-        parsedValue = JSON.parse(row.value);
-      }
-      enmap.set(row.key, parsedValue);
+    if (this.fetchAll) {
+      await this.fetchEverything();
     }
     this.ready();
     return this.defer;
@@ -48,9 +45,37 @@ class EnmapSQLite {
 
   /**
    * Shuts down the underlying persistent enmap database.
+   * @return {Promise<*>} The promise of the database closing operation.
    */
   close() {
-    this.db.close();
+    return Promise.resolve(this.db.close());
+  }
+
+  /**
+   * Fetches a specific key or array of keys from the database, adds it to the EnMap object, and returns its value.
+   * @param {(string|number)} key The key to retrieve from the database.
+   * @return {*} The value obtained from the database. 
+   */
+  fetch(key) {
+    const row = this.db.prepare(`SELECT * FROM ${this.name} WHERE key = ?;`).get(key);
+    if (row) this.enmap.set(key, row.value);
+    return Promise.resolve(row.data);
+  }
+
+  /** 
+   * Fetches all non-cached values from the database, and adds them to the enmap.
+   * @return {Promise<Map>} The promise of a cached Enmap.
+  */
+  fetchEverything() {
+    const rows = this.db.prepare(`SELECT * FROM ${this.name};`).all();
+    for (const row of rows) {
+      let parsedValue = row.value;
+      if (row.value[0] === '[' || row.value[0] === '{') {
+        parsedValue = JSON.parse(row.value);
+      }
+      this.enmap.set(row.key, parsedValue);
+    }
+    return Promise.resolve(this);
   }
 
   /**
@@ -59,46 +84,36 @@ class EnmapSQLite {
    * If the EnMap is persistent this value MUST be a string or number.
    * @param {*} val Required. The value of the element to add to the EnMap object.
    * If the EnMap is persistent this value MUST be stringifiable as JSON.
+   * @return {Promise<*>} Promise returned by the database after insertion. 
    */
   set(key, val) {
     if (!key || !['String', 'Number'].includes(key.constructor.name)) {
       throw new Error('SQLite require keys to be strings or numbers.');
     }
     const insert = typeof val === 'object' ? JSON.stringify(val) : val;
-    this.db.prepare(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`).run(key, insert);
-  }
-
-  /**
-   * Asynchronously ensure a write to the Enmap.
-   * @param {(string|number)} key Required. The key of the element to add to the EnMap object.
-   * If the EnMap is persistent this value MUST be a string or number.
-   * @param {*} val Required. The value of the element to add to the EnMap object.
-   * If the EnMap is persistent this value MUST be stringifiable as JSON.
-   */
-  async setAsync(key, val) {
-    if (!key || !['String', 'Number'].includes(key.constructor.name)) {
-      throw new Error('SQLite require keys to be strings or numbers.');
-    }
-    const insert = typeof val === 'object' ? JSON.stringify(val) : val;
-    await this.db.prepare(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`).run(key, insert);
+    return Promise.resolve(this.db.prepare(`INSERT OR REPLACE INTO ${this.name} (key, value) VALUES (?, ?);`).run(key, insert));
   }
 
   /**
    * Delete an entry from the Enmap.
    * @param {(string|number)} key Required. The key of the element to delete from the EnMap object.
    * @param {boolean} bulk Internal property used by the purge method.
+   * @return {Promise<*>} Promise returned by the database after deletion
    */
   delete(key) {
-    this.db.prepare(`DELETE FROM ${this.name} WHERE key = '${key}'`).exec();
+    return Promise.resolve(this.db.prepare(`DELETE FROM ${this.name} WHERE key = '${key}'`).run());
+  }
+
+  hasAsync(key) {
+    return Promise.resolve(this.db.prepare(`SELECT key FROM ${this.name} WHERE key = ?`).get(key));
   }
 
   /**
-   * Asynchronously ensure an entry deletion from the Enmap.
-   * @param {(string|number)} key Required. The key of the element to delete from the EnMap object.
-   * @param {boolean} bulk Internal property used by the purge method.
+   * Deletes all entries in the database.
+   * @return {Promise<*>} Promise returned by the database after deletion
    */
-  async deleteAsync(key) {
-    await this.db.prepare(`DELETE FROM ${this.name} WHERE key = '${key}'`).exec();
+  bulkDelete() {
+    return Promise.resolve(this.db.prepare(`DELETE FROM ${this.name};`).run());
   }
 
   /**
@@ -112,4 +127,4 @@ class EnmapSQLite {
 
 }
 
-module.exports = EnmapSQLite;
+module.exports = EnmapProvider;
