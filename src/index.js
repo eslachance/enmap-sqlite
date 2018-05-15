@@ -33,8 +33,8 @@ class EnmapProvider {
     const table = this.db.prepare(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name = '${this.name}';`).get();
     if (!table['count(*)']) {
       this.db.prepare(`CREATE TABLE ${this.name} (key text PRIMARY KEY, value text)`).run();
-      this.db.prepare(`PRAGMA synchronous = 1`).run();
-      this.db.prepare(`PRAGMA journal_mode = wal`).run();
+      this.db.pragma('synchronous = 1');
+      this.db.pragma('journal_mode = wal');
     }
     if (this.fetchAll) {
       await this.fetchEverything();
@@ -54,7 +54,7 @@ class EnmapProvider {
   /**
    * Fetches a specific key or array of keys from the database, adds it to the EnMap object, and returns its value.
    * @param {(string|number)} key The key to retrieve from the database.
-   * @return {*} The value obtained from the database. 
+   * @return {Promise<*>} The value obtained from the database. 
    */
   fetch(key) {
     const row = this.db.prepare(`SELECT * FROM ${this.name} WHERE key = ?;`).get(key);
@@ -84,7 +84,7 @@ class EnmapProvider {
    * If the EnMap is persistent this value MUST be a string or number.
    * @param {*} val Required. The value of the element to add to the EnMap object.
    * If the EnMap is persistent this value MUST be stringifiable as JSON.
-   * @return {Promise<*>} Promise returned by the database after insertion. 
+   * @return {Promise<*>} Promise returned by the database after insertion.
    */
   set(key, val) {
     if (!key || !['String', 'Number'].includes(key.constructor.name)) {
