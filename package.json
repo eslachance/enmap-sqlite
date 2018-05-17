@@ -1,6 +1,6 @@
 {
   "name": "enmap-sqlite",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "",
   "main": "index.js",
   "types": "typings/index.d.ts",
