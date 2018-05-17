@@ -54,15 +54,15 @@ class EnmapProvider {
   /**
    * Fetches a specific key or array of keys from the database, adds it to the EnMap object, and returns its value.
    * @param {(string|number)} key The key to retrieve from the database.
-   * @return {Promise<*>} The value obtained from the database. 
+   * @return {Promise<*>} The value obtained from the database.
    */
   fetch(key) {
     const row = this.db.prepare(`SELECT * FROM ${this.name} WHERE key = ?;`).get(key);
-    if (row) this.enmap.set(key, row.value);
+    if (row) Map.prototype.set.call(this.enmap, key, row.value);
     return Promise.resolve(row.data);
   }
 
-  /** 
+  /**
    * Fetches all non-cached values from the database, and adds them to the enmap.
    * @return {Promise<Map>} The promise of a cached Enmap.
   */
@@ -73,7 +73,7 @@ class EnmapProvider {
       if (row.value[0] === '[' || row.value[0] === '{') {
         parsedValue = JSON.parse(row.value);
       }
-      this.enmap.set(row.key, parsedValue);
+      Map.prototype.set.call(this.enmap, row.key, parsedValue);
     }
     return Promise.resolve(this);
   }
@@ -121,7 +121,6 @@ class EnmapProvider {
    * @private
    */
   validateName() {
-    // Do not delete this internal method.
     this.name = this.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
   }
 
