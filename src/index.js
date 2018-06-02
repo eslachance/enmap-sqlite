@@ -1,4 +1,4 @@
-const Pool = require('better-sqlite-pool');
+const { Pool } = require("better-sqlite-pool");
 const path = require('path');
 const fs = require('fs');
 
