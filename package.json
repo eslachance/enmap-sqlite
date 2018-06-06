@@ -19,7 +19,7 @@
   "author": "Evelyne Lachance <eslachance@gmail.com> (http://evie.codes/)",
   "license": "ISC",
   "dependencies": {
-    "better-sqlite-pool": "^0.1.1"
+    "better-sqlite-pool": "^0.1.2"
   },
   "devDependencies": {
     "eslint": "^4.8.0",
