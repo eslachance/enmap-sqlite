@@ -2,12 +2,25 @@ const { Pool } = require('better-sqlite-pool');
 const path = require('path');
 const fs = require('fs');
 
+/* Error Definitions */
+function ConnectionException(message) {
+  this.message = message;
+  this.name = 'ConnectionException';
+}
+
+function ReadyError(message) {
+  this.message = message;
+  this.name = 'ReadyError';
+}
+
 class EnmapProvider {
 
   constructor(options) {
     this.defer = new Promise((resolve) => {
       this.ready = resolve;
     });
+
+    this.isReady = false;
 
     if (!options.name) throw new Error('Must provide options.name');
     this.name = options.name;
@@ -29,6 +42,11 @@ class EnmapProvider {
   async init(enmap) {
     this.pool = new Pool(`${this.dataDir}${path.sep}enmap.sqlite`);
     this.db = await this.pool.acquire();
+    if (this.db) {
+      this.isReady = true;
+    } else {
+      throw new ConnectionException('Database Could Not Be Opened');
+    }
     this.enmap = enmap;
     const table = this.db.prepare(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name = '${this.name}';`).get();
     if (!table['count(*)']) {
@@ -48,6 +66,7 @@ class EnmapProvider {
    * @return {Promise<*>} The promise of the database closing operation.
    */
   close() {
+    if (!this.isReady) throw new ReadyError('Database is not ready. Refer to the readme to use enmap.defer');
     return Promise.resolve(this.db.close());
   }
 
@@ -57,9 +76,15 @@ class EnmapProvider {
    * @return {Promise<*>} The value obtained from the database.
    */
   fetch(key) {
+    if (!this.isReady) throw new ReadyError('Database is not ready. Refer to the readme to use enmap.defer');
     const row = this.db.prepare(`SELECT * FROM ${this.name} WHERE key = ?;`).get(key);
-    if (row) Map.prototype.set.call(this.enmap, key, row.value);
-    return Promise.resolve(row.data);
+    if (!row) return null;
+    let parsedValue = row.value;
+    if (parsedValue === '[' || parsedValue === '{') {
+      parsedValue = JSON.parse(row.value);
+    }
+    Map.prototype.set.call(this.enmap, key, parsedValue);
+    return { key, value: parsedValue };
   }
 
   /**
@@ -67,6 +92,7 @@ class EnmapProvider {
    * @return {Promise<Map>} The promise of a cached Enmap.
   */
   fetchEverything() {
+    if (!this.isReady) throw new ReadyError('Database is not ready. Refer to the readme to use enmap.defer');
     const rows = this.db.prepare(`SELECT * FROM ${this.name};`).all();
     for (const row of rows) {
       let parsedValue = row.value;
@@ -87,6 +113,7 @@ class EnmapProvider {
    * @return {Promise<*>} Promise returned by the database after insertion.
    */
   set(key, val) {
+    if (!this.isReady) throw new ReadyError('Database is not ready. Refer to the readme to use enmap.defer');
     if (!key || !['String', 'Number'].includes(key.constructor.name)) {
       throw new Error('SQLite require keys to be strings or numbers.');
     }
@@ -101,10 +128,12 @@ class EnmapProvider {
    * @return {Promise<*>} Promise returned by the database after deletion
    */
   delete(key) {
+    if (!this.isReady) throw new ReadyError('Database is not ready. Refer to the readme to use enmap.defer');
     return Promise.resolve(this.db.prepare(`DELETE FROM ${this.name} WHERE key = '${key}'`).run());
   }
 
   hasAsync(key) {
+    if (!this.isReady) throw new ReadyError('Database is not ready. Refer to the readme to use enmap.defer');
     return Promise.resolve(this.db.prepare(`SELECT key FROM ${this.name} WHERE key = ?`).get(key));
   }
 
@@ -113,6 +142,7 @@ class EnmapProvider {
    * @return {Promise<*>} Promise returned by the database after deletion
    */
   bulkDelete() {
+    if (!this.isReady) throw new ReadyError('Database is not ready. Refer to the readme to use enmap.defer');
     return Promise.resolve(this.db.prepare(`DELETE FROM ${this.name};`).run());
   }
 
