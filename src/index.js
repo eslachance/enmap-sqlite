@@ -80,7 +80,7 @@ class EnmapProvider {
     const row = this.db.prepare(`SELECT * FROM ${this.name} WHERE key = ?;`).get(key);
     if (!row) return null;
     let parsedValue = row.value;
-    if (parsedValue === '[' || parsedValue === '{') {
+    if (parsedValue[0] === '[' || parsedValue[0] === '{') {
       parsedValue = JSON.parse(row.value);
     }
     Map.prototype.set.call(this.enmap, key, parsedValue);
